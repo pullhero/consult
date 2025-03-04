@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # GNU GENERAL PUBLIC LICENSE
 # Version 3, 29 June 2007
 #
@@ -45,19 +46,15 @@ def get_pr_diff(github_token, owner, repo, pr_number):
 
 def call_ai_api(api_host, api_key, api_model, prompt):
     """Handles API calls with error handling."""
-
-    url=f"https://{api_host}/v1/chat/completions"
-
+    url = f"https://{api_host}/v1/chat/completions"
     payload = {
         "model": api_model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 1000
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
     response = requests.post(url, json=payload, headers=headers)
     response.raise_for_status()
-    
     data = response.json()
     return data["choices"][0]["message"]["content"]
 
@@ -65,7 +62,7 @@ def main():
     setup_logging()
     parser = argparse.ArgumentParser(
         description='PullHero automatic PR reviews',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,  # Enables default values in help
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog="Note: All API requests (for any provider) will use the endpoint '/v1/chat/completions'."
     )
     # GitHub specific parameters
@@ -75,7 +72,9 @@ def main():
     parser.add_argument('--api-key', default=os.environ.get('LLM_API_KEY'), help='AI API Key')
     parser.add_argument('--api-host', default=os.environ.get('LLM_API_HOST', 'api.openai.com'), help='LLM API HOST, like api.openai.com')
     parser.add_argument('--api-model', default=os.environ.get('LLM_API_MODEL', 'gpt-4-turbo'), help='LLM Model, like gpt-4-turbo')
-    
+    # New parameter: vote-action
+    parser.add_argument('--vote-action', default=os.environ.get('VOTE_ACTION', 'comment'), help='Action to take for vote: "comment" (default) or "vote" (approve/request changes)')
+
     args = parser.parse_args()
     
     with open(args.event_path, 'r') as f:
@@ -109,7 +108,7 @@ PR Changes:
 Instructions:
 1. Analyze changes for quality, bugs, and best practices.
 2. Provide concise feedback.
-3. End with \"Vote: +1\" (approve) or \"Vote: -1\" (request changes)."""
+3. End with "Vote: +1" (approve) or "Vote: -1" (request changes)."""
     
     try:
         review_text = call_ai_api(args.api_host, args.api_key, args.api_model, prompt)
@@ -119,13 +118,32 @@ Instructions:
     
     vote = "+1" if "+1" in review_text else "-1" if "-1" in review_text else "0"
     
-    g = Github(args.github_token)
-    repo = g.get_repo(f"{owner}/{repo}")
-    pr = repo.get_pull(pr_number)
-
+    provider_data = f"Provider: {args.api_host} Model: {args.api_model}"
     sourcerepo = "**[PullHero](https://github.com/ccamacho/pullhero)**"
-    provider_data=f"Provider: {args.api_host} Model: {args.api_model}"
-    pr.create_issue_comment(f"### [PullHero](https://github.com/ccamacho/pullhero) Review\n\n**{provider_data}**\n\n{review_text}\n\n**Vote**: {vote}\n\n{sourcerepo}") 
+    comment_text = (
+        f"### [PullHero](https://github.com/ccamacho/pullhero) Review\n\n"
+        f"**{provider_data}**\n\n{review_text}\n\n"
+        f"**Vote**: {vote}\n\n{sourcerepo}"
+    )
+    
+    g = Github(args.github_token)
+    repo_obj = g.get_repo(f"{owner}/{repo}")
+    pr_obj = repo_obj.get_pull(pr_number)
+
+    if args.vote_action.lower() == "vote":
+        if vote == "+1":
+            pr_obj.create_review(body=comment_text, event="APPROVE")
+            logging.info("Review created with event APPROVE")
+        elif vote == "-1":
+            pr_obj.create_review(body=comment_text, event="REQUEST_CHANGES")
+            logging.info("Review created with event REQUEST_CHANGES")
+        else:
+            pr_obj.create_review(body=comment_text, event="COMMENT")
+            logging.info("Review created with event COMMENT (neutral vote)")
+    else:
+        pr_obj.create_issue_comment(comment_text)
+        logging.info("Review comment added using create_issue_comment")
+    
     logging.info(f"Review completed with vote: {vote}")
 
 if __name__ == "__main__":

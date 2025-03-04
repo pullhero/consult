@@ -42,6 +42,10 @@ inputs:
     description: 'Max digest length'
     default: '4096'
     required: false
+  vote-action:
+    description: 'WHether if the action will add a simple comment or approve the PR'
+    default: 'comment'
+    required: false
 runs:
   using: "docker"
   image: 'Dockerfile'
@@ -51,3 +55,4 @@ runs:
     - ${{ inputs.api-host }}
     - ${{ inputs.api-model }}
     - ${{ inputs.model-digest-length }}
+    - ${{ inputs.vote-action }}
