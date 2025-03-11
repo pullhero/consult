@@ -25,6 +25,7 @@ import requests
 import sys
 from github import Github
 from gitingest import ingest
+import pygit2
 
 def setup_logging():
     logging.basicConfig(
@@ -32,6 +33,35 @@ def setup_logging():
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
+
+def clone_repo_with_token(repo_url, local_path, github_token):
+    """
+    Clone the repository using the GITHUB_TOKEN for authentication with pygit2.
+    """
+    # Define the callback function for credentials (used by pygit2 for authentication)
+    def credentials_callback(url, username_from_url, allowed_types):
+        """
+        Provide authentication credentials (username and password/token) for Git.
+        """
+        if github_token:
+            return pygit2.UserPass("x-access-token", github_token)  # Use GitHub token for authentication
+        else:
+            raise ValueError("GITHUB_TOKEN is not set")
+
+    try:
+        # Perform the clone using pygit2 and pass the credentials callback for authentication
+        logging.info(f"Cloning repository from {repo_url} to {local_path}")
+        
+        # Create a RemoteCallbacks object and pass it to pygit2
+        remote_callbacks = pygit2.RemoteCallbacks(credentials=credentials_callback)
+        
+        # Set the callbacks to handle authentication
+        pygit2.clone_repository(repo_url, local_path, callbacks=remote_callbacks)
+        
+        logging.info(f"Repository cloned to {local_path}")
+    except Exception as e:
+        logging.error(f"Error cloning the repository: {e}")
+        raise
 
 def get_pr_diff(github_token, owner, repo, pr_number):
     """Fetches the diff of a pull request."""
@@ -94,8 +124,15 @@ def main():
     logging.info(f"Processing PR #{pr_number}")
     
     diff = get_pr_diff(args.github_token, owner, repo, pr_number)
-    
-    summary, tree, content = ingest(f"https://github.com/{owner}/{repo}.git")
+
+    local_repo_path = "/tmp/clone"
+    repo_url = f"https://github.com/{owner}/{repo}.git"
+    clone_repo_with_token(repo_url, local_repo_path, args.github_token)
+
+    # Use the ingest method to get repository context (e.g., summary of code)
+    summary, tree, content = ingest(f"{local_repo_path}")
+    # TODO: When gitingest supports pulling private repos use the native method
+    # summary, tree, content = ingest(f"https://github.com/{owner}/{repo}.git")
     context = summary
     
     prompt = f"""Code Review Task:
