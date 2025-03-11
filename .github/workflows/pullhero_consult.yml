@@ -1,0 +1,58 @@
+---
+name: Pull Hero Consult workflow
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      issues: write
+
+    if: github.event.label.name == 'consult'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.issue.pull_request.head.ref }}
+          repository: ${{ github.repository }}
+
+      - name: Debug Issue Data
+        run: |
+          echo "Issue Details:"
+          echo " - Issue Title: '${{ github.event.issue.title }}'"
+          echo " - Issue Author: '${{ github.event.issue.user.login }}'"
+          echo " - Issue Number: ${{ github.event.issue.number }}"
+
+      - name: Debug Secret Variables
+        run: |
+          echo "Verifying Secret Variables..."
+
+          if [[ -z "${{ secrets.OPENAI_API_KEY }}" ]]; then
+            echo "ERROR: OPENAI_API_KEY is missing!"
+          else
+            echo "OPENAI_API_KEY is set. (Length: ${#OPENAI_API_KEY})"
+          fi
+
+          if [[ -z "${{ secrets.GITHUB_TOKEN }}" ]]; then
+            echo "ERROR: GITHUB_TOKEN is missing!"
+          else
+            echo "GITHUB_TOKEN is set. (Length: ${#GITHUB_TOKEN})"
+          fi
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run PullHero
+        uses: ./
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          api-key: "${{ secrets.OPENAI_API_KEY }}"
+          api-host: "api.openai.com"
+          api-model: "gpt-4-turbo"

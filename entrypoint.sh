@@ -27,7 +27,6 @@ export LLM_API_KEY=$2
 export LLM_API_HOST=$3
 export LLM_API_MODEL=$4
 export LLM_MODEL_DIGEST_LENGTH=$5
-export VOTE_ACTION=$6
 
 echo "Run pullhero"
 python /usr/bin/pullhero.py

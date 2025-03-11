@@ -17,8 +17,8 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
-name: 'PullHero Review'
-description: 'A Python-based Review assistant'
+name: 'PullHero Consult'
+description: 'A Python-based Consulting assistant'
 author: 'PullHero'
 branding:
   icon: message-square
@@ -42,10 +42,6 @@ inputs:
     description: 'Max digest length'
     default: '4096'
     required: false
-  vote-action:
-    description: 'WHether if the action will add a simple comment or approve the PR'
-    default: 'comment'
-    required: false
 runs:
   using: "docker"
   image: 'Dockerfile'
@@ -55,4 +51,3 @@ runs:
     - ${{ inputs.api-host }}
     - ${{ inputs.api-model }}
     - ${{ inputs.model-digest-length }}
-    - ${{ inputs.vote-action }}
