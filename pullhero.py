@@ -90,7 +90,7 @@ def main():
     parser.add_argument('--github-token', default=os.environ.get('GITHUB_TOKEN'), help='GitHub Token')
     parser.add_argument('--api-key', default=os.environ.get('LLM_API_KEY'), help='AI API Key')
     parser.add_argument('--api-host', default=os.environ.get('LLM_API_HOST', 'api.openai.com'), help='LLM API HOST')
-    parser.add_argument('--api-model', default=os.environ.get('LLM_API_MODEL', 'gpt-4-turbo'), help='LLM Model')
+    parser.add_argument('--api-model', default=os.environ.get('LLM_API_MODEL', 'gpt-4o-mini'), help='LLM Model')
     args = parser.parse_args()
     
     repo_name = os.environ['GITHUB_REPOSITORY']
